@@ -58,6 +58,10 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL);
 });
 
+app.get("*", (req, res) => {
+  res.redirect('/urls')
+});
+
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
 });
