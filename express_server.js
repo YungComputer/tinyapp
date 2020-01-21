@@ -20,8 +20,6 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
-
-
 app.get("/urls", (req, res) => {
   let templateVars = { urls: urlDatabase };
   res.render("urls_index", templateVars);
@@ -32,7 +30,7 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase };
+  let templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
   res.render("urls_show", templateVars);
 });
 
@@ -49,9 +47,16 @@ app.get("/", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
-  console.log(req.body); //Log the POST request body to the console
-  res.send("Ok"); // Respond with "ok" (we will replace this)
-})
+  console.log(req.body);  //Log the POST request body to the console
+  const randomStr = generateRandomString();
+  urlDatabase[randomStr] = req.body.longURL
+  res.redirect(`/urls/${randomStr}`); 
+});
+
+app.get("/u/:shortURL", (req, res) => {
+  const longURL = urlDatabase[req.params.shortURL]
+  res.redirect(longURL);
+});
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
