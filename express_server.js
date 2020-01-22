@@ -9,13 +9,13 @@ function generateRandomString() {
   return randomatic("aA0", 6);
 }
 
-const checkEmail = function(obj, email) {
-  for (const user in obj) {
-    if(obj[user].email === email) {
-      return true;
+const checkEmail = function(userDatabase, email) {
+  for (const userId in userDatabase) {
+    if(userDatabase[userId].email === email) {
+      return userDatabase[userId];
     }
   }
-  return false;
+  return null;
 };
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -48,19 +48,19 @@ app.get("/register", (req, res) => {
 
 app.get("/urls", (req, res) => {
   console.log(req.cookies.users);
-  let templateVars = { user: users[req.cookies.users], urls: urlDatabase };
+  let templateVars = { user: users[req.cookies.user_id], urls: urlDatabase };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new", { user: req.cookies.users });
+  res.render("urls_new", { user: req.cookies.user_id });
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   let templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL],
-    user: users[req.cookies.users]
+    user: users[req.cookies.user_id]
   };
   res.render("urls_show", templateVars);
 });
@@ -99,14 +99,14 @@ if (checkEmail(users, req.body.email)) { //checks if email is already registered
   res.sendStatus(400);
 }
 
-  let randomID = generateRandomString();
-  users[randomID] = {
-    randomID,
+  let id = generateRandomString();
+  users[id] = {
+    id,
     email: req.body.email,
     password: req.body.password
   };
 
-  res.cookie("user_id", randomID);
+  res.cookie("user_id", id);
 
   res.redirect("/urls");
 });
@@ -114,14 +114,15 @@ if (checkEmail(users, req.body.email)) { //checks if email is already registered
 
 //login
 app.post("/login", (req, res) => {
-  res.cookie("users", users[req.cookies.users]);
-  if (!checkEmail(users, req.body.email)) { //if a user with that email cannot be found
+  let user = checkEmail(users, req.body.email);
+  if (!user) { //if a user with that email cannot be found
     res.sendStatus(403)
   }
-   else if(!checkEmail(users, req.body.password)) //if given password in the form with the existing user's password does not match
+   if(user.password !== req.body.password) { //if given password in the form with the existing user's password does not match
     res.sendStatus(403)
+}
 
-  res.cookie("user_id", randomID);
+  res.cookie("user_id", user.id);
 
   res.redirect("/urls");
 });
