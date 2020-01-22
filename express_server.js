@@ -84,13 +84,13 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 //Registration
 app.post("/register", (req, res) => {
-  const randomUserID = users[generateRandomString()];
-  const { id, email, password} = req.body;
-  users[randomUserID] = {
-    id,
-    email,
-    password
+  let randomID = generateRandomString();
+  users[randomID] = {
+    randomID,
+    email: req.body.email,
+    password: req.body.password
   };
+
   res.redirect('/urls');
 });
 
