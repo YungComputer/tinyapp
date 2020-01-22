@@ -19,41 +19,39 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
-const users = {
+const users = { 
   "userRandomID": {
-    id: "userRandomID",
-    email: "user@example.com",
+    id: "userRandomID", 
+    email: "user@example.com", 
     password: "purple-monkey-dinosaur"
   },
   "user2RandomID": {
-    id: "user2RandomID",
-    email: "user2@example.com",
-    password: "diswasher-funk"
+    id: "user2RandomID", 
+    email: "user2@example.com", 
+    password: "dishwasher-funk"
   }
 }
 
-
-
-
+//Register GET endpoint
 app.get("/register", (req, res) => {
   res.render("urls_register");
 });
 
 app.get("/urls", (req, res) => {
-  console.log(req.cookies.username);
-  let templateVars = { username: req.cookies.username, urls: urlDatabase };
+  console.log(req.cookies.users);
+  let templateVars = { username: req.cookies.users, urls: urlDatabase };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new", {username: req.cookies.username});
+  res.render("urls_new", { username: req.cookies.users });
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   let templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL],
-    username: req.cookies.username
+    username: req.cookies.users
   };
   res.render("urls_show", templateVars);
 });
@@ -91,9 +89,18 @@ app.post("/register", (req, res) => {
     password: req.body.password
   };
 
-  res.redirect('/urls');
-});
+  //Registration Errors
+  if (email === "" || password === "") {
+    return res.statusCode(400);
+  } 
+  if (users[email]) {
+    return res.statusCode(400);
+  }
 
+  res.cookie(randomID);
+
+  res.redirect("/urls");
+});
 
 //Edit
 app.post("/urls/:id", (req, res) => {
@@ -105,14 +112,14 @@ app.post("/urls/:id", (req, res) => {
 
 //login
 app.post("/login", (req, res) => {
-  res.cookie("username", req.body.username);
+  res.cookie("username", req.body.users);
 
   res.redirect("/urls");
 });
 
 //logout
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
+  res.clearCookie("users");
 
   res.redirect("/urls");
 });

@@ -20,7 +20,7 @@
       
     <% } else{ %>  
       <form method="POST" action=/login>
-        <label> <%= username %> </label> 
+        <label> <%= user.email %> </label> 
         <label for="username">username</label>
         <input type="text" name="username" id="username">
         <button type="submit" class="btn btn-outline-dark">login</button>

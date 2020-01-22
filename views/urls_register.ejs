@@ -1,18 +1,46 @@
-<form method="POST" action="/register">
-  <div class="container">
+<link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet" id="bootstrap-css">
+<script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+<!------ Bootstrap style ---------->
+
+
+
+<form method="POST" action="/register" class="form-horizontal">
+  <fieldset>
+  <div class="control-group">
+    <div class="controls">
     <h1>Register</h1>
     <p>Please fill in this form to create an account</p>
     <hr>
+  </div>
+  </div>
 
+  <div class="control-group">
+    <!-- Email -->
+    <div class="controls">
     <label for="email"><b>Email</b></label>
     <input type="email" placeholder="Enter Email" name="email" required>
+  </div>
+  </div>
 
+
+<!-- Password -->
+  <div class="control-group">
+      <div class="controls"> 
     <label for="password"<b>Password</b></label>
-    <input type="password" placeholder="Enter Password" name"password" required?
+    <input type="password" placeholder="Enter Password" name"password" required">
+    </div>
+  </div>
 
+  <!-- Repeat Password -->
+  <div class="control-group">
+    <div class="controls">
     <label for="password-repeat"<b>Confirm Password</b></label>
     <input type="password" placeholder="Confirm Password" name="password-repeat" required>
-
-    <button class=btn btn-success">Register</button>
   </div>
+  </div>
+  <div class="controls">
+    <button type="submit" class=btn btn-primary">Register</button>
+  </div>
+  </fieldset>
 </form>
