@@ -9,6 +9,15 @@ function generateRandomString() {
   return randomatic("aA0", 6);
 }
 
+const checkEmail = function(obj, email) {
+  for (const user in obj) {
+    if(obj[user].email === email) {
+      return true;
+    }
+  }
+  return false;
+};
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
@@ -39,7 +48,7 @@ app.get("/register", (req, res) => {
 
 app.get("/urls", (req, res) => {
   console.log(req.cookies.users);
-  let templateVars = { username: req.cookies.users, urls: urlDatabase };
+  let templateVars = { user: users[req.cookies.users], urls: urlDatabase };
   res.render("urls_index", templateVars);
 });
 
@@ -51,7 +60,7 @@ app.get("/urls/:shortURL", (req, res) => {
   let templateVars = {
     shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL],
-    username: req.cookies.users
+    user: users[req.cookies.users]
   };
   res.render("urls_show", templateVars);
 });
@@ -60,13 +69,21 @@ app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
+// app.get("/hello", (req, res) => {
+//   res.send("<html><body>Hello <b>World</b></body></html>\n");
+// });
 
-app.get("/", (req, res) => {
-  res.send("Hello!");
-});
+app.get("/login", (req, res) => {
+  res.render("urls_login.ejs");
+})
+
+app.get("/register", (req, res) => {
+  res.render("urls_register.ejs");
+})
+
+// app.get("/", (req, res) => {
+//   res.send("Hello!");
+// });
 
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
@@ -82,6 +99,10 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 //Registration
 app.post("/register", (req, res) => {
+if (checkEmail(users, req.body.email)) { //checks if email is already registered
+  res.sendStatus(400);
+}
+
   let randomID = generateRandomString();
   users[randomID] = {
     randomID,
@@ -89,15 +110,7 @@ app.post("/register", (req, res) => {
     password: req.body.password
   };
 
-  //Registration Errors
-  if (email === "" || password === "") {
-    return res.statusCode(400);
-  } 
-  if (users[email]) {
-    return res.statusCode(400);
-  }
-
-  res.cookie(randomID);
+  res.cookie("user_id", randomID);
 
   res.redirect("/urls");
 });
@@ -112,14 +125,14 @@ app.post("/urls/:id", (req, res) => {
 
 //login
 app.post("/login", (req, res) => {
-  res.cookie("username", req.body.users);
+  res.cookie("users", users[req.cookies.users]);
 
   res.redirect("/urls");
 });
 
 //logout
 app.post("/logout", (req, res) => {
-  res.clearCookie("users");
+  res.clearCookie("user_id");
 
   res.redirect("/urls");
 });

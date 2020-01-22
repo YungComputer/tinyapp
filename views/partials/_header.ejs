@@ -11,20 +11,21 @@
       </div>
     </div>
     
-    <% if(typeof username === "string" && username){ %>
+    <% if(typeof user !== "undefined"){ %>
 
       <form method="POST" action=/logout>
-        <label> <%= username %> </label> 
+        <label> <%= user.email %> </label> 
         <button type="submit" class="btn btn-outline-dark">logout</button>
       </form>
       
     <% } else{ %>  
-      <form method="POST" action=/login>
-        <label> <%= user.email %> </label> 
-        <label for="username">username</label>
-        <input type="text" name="username" id="username">
+
+      <form method="GET" action=/login>
         <button type="submit" class="btn btn-outline-dark">login</button>
-      </form>
+      </form> 
+      <form method="GET" action=/register>
+        <button type="submit" class="btn btn-outline-dark">register</button>
+      </form> 
     <% } %>
 
 
