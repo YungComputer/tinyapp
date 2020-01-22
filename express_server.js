@@ -53,7 +53,7 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new", { username: req.cookies.users });
+  res.render("urls_new", { user: req.cookies.users });
 });
 
 app.get("/urls/:shortURL", (req, res) => {
@@ -111,17 +111,17 @@ if (checkEmail(users, req.body.email)) { //checks if email is already registered
   res.redirect("/urls");
 });
 
-//Edit
-app.post("/urls/:id", (req, res) => {
-  console.log(req.body);
-  urlDatabase[req.params.id] = req.body.longURL;
-
-  res.redirect("/urls");
-});
 
 //login
 app.post("/login", (req, res) => {
   res.cookie("users", users[req.cookies.users]);
+  if (!checkEmail(users, req.body.email)) { //if a user with that email cannot be found
+    res.sendStatus(403)
+  }
+   else if(!checkEmail(users, req.body.password)) //if given password in the form with the existing user's password does not match
+    res.sendStatus(403)
+
+  res.cookie("user_id", randomID);
 
   res.redirect("/urls");
 });
@@ -132,6 +132,17 @@ app.post("/logout", (req, res) => {
 
   res.redirect("/urls");
 });
+
+
+
+//Edit
+app.post("/urls/:id", (req, res) => {
+  console.log(req.body);
+  urlDatabase[req.params.id] = req.body.longURL;
+
+  res.redirect("/urls");
+});
+
 
 //UPDATE A RESOURCE
 app.post("/urls", (req, res) => {
