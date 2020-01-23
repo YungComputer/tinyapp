@@ -1,13 +1,16 @@
 const randomatic = require("randomatic");
 const express = require("express");
+const {getUserByEmail} = require('./helpers');
 const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
-app.use(cookieSession({
-  name: 'session',
-  keys: ["a", "b", "c"]
-}))
+app.use(
+  cookieSession({
+    name: "session",
+    keys: ["a", "b", "c"]
+  })
+);
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const plainTextPassword1 = "purple-monkey-dinosaur";
@@ -22,15 +25,7 @@ bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword1); // returns true
 function generateRandomString() {
   return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
 }
-//checks if email is already in database
-const checkEmail = function(userDatabase, email) {
-  for (const userId in userDatabase) {
-    if (userDatabase[userId].email === email) {
-      return userDatabase[userId];
-    }
-  }
-  return null;
-};
+
 
 //checks if the user is currently logged in
 const isLoggedIn = function(database, cookie) {
@@ -54,10 +49,13 @@ const urlsForUser = function(id) {
   return result;
 };
 
+//APP USE AND SET TO VIEW EJS
 app.use(bodyParser.urlencoded({ extended: true }));
 
-
 app.set("view engine", "ejs");
+
+
+//DATABASES
 
 const urlDatabase = {
   "3rQmlu": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
@@ -77,7 +75,7 @@ const users = {
   }
 };
 
-//Register GET endpoint
+//GET ENDPOINTS
 app.get("/register", (req, res) => {
   res.render("urls_register");
 });
@@ -115,10 +113,6 @@ app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
-// app.get("/hello", (req, res) => {
-//   res.send("<html><body>Hello <b>World</b></body></html>\n");
-// });
-
 app.get("/login", (req, res) => {
   res.render("urls_login.ejs");
 });
@@ -137,6 +131,8 @@ app.get("/u/:id", (req, res) => {
   const urls = urlDatabase[req.params.userID];
   res.redirect("/urls", urls);
 });
+
+//POST ENDPOINTS
 
 //Delete a URL
 app.post("/urls/:shortURL/delete", (req, res) => {
@@ -162,13 +158,13 @@ app.post("/urls/:id", (req, res) => {
 
 //Register a new user
 app.post("/register", (req, res) => {
-  if (checkEmail(users, req.body.email)) {
+  if (getUserByEmail(users, req.body.email)) {
     //checks if email is already registered
     res.sendStatus(400);
   }
 
   const hashedPassword = bcrypt.hashSync(req.body.password, 10);
-  
+
   let id = generateRandomString();
   users[id] = {
     id,
@@ -183,7 +179,7 @@ app.post("/register", (req, res) => {
 
 //login
 app.post("/login", (req, res) => {
-  let user = checkEmail(users, req.body.email);
+  let user = getUserByEmail(users, req.body.email);
   if (!user) {
     //if a user with that email cannot be found
     res.sendStatus(403);
@@ -229,6 +225,7 @@ app.get("*", (req, res) => {
   res.redirect("/urls");
 });
 
+//Server ON message
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
 });
