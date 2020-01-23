@@ -5,11 +5,15 @@ const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcrypt");
-// const saltRounds = 10;
-// const plainTextPassword1 = "purple-monkey-dinosaur";
-// const plainTextPassword2 = "dishwasher-funk";
-// const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, salt);
-// const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, salt);
+const saltRounds = 10;
+const plainTextPassword1 = "purple-monkey-dinosaur";
+const plainTextPassword2 = "dishwasher-funk";
+// const newUserPassword = req.body.password;
+const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, saltRounds);
+const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, saltRounds);
+// const hashedPassword3 = bcrypt.hashSync(newUserPassword, saltRounds);
+
+bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword1); // returns true
 
 function generateRandomString() {
   return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
@@ -71,7 +75,6 @@ const users = {
 
 //Register GET endpoint
 app.get("/register", (req, res) => {
-
   res.render("urls_register");
 });
 
@@ -96,7 +99,9 @@ app.get("/urls/:shortURL", (req, res) => {
   console.log(urlDatabase);
   let templateVars = {
     shortURL: req.params.shortURL,
-    longURL:  urlDatabase[req.params.shortURL] && urlDatabase[req.params.shortURL]["longURL"],
+    longURL:
+      urlDatabase[req.params.shortURL] &&
+      urlDatabase[req.params.shortURL]["longURL"],
     user: users[req.cookies.user_id]
   };
   res.render("urls_show", templateVars);
@@ -126,29 +131,29 @@ app.get("/u/:shortURL", (req, res) => {
 //Read
 app.get("/u/:id", (req, res) => {
   const urls = urlDatabase[req.params.userID];
-  res.redirect('/urls', urls)
-})
+  res.redirect("/urls", urls);
+});
 
 //Delete a URL
 app.post("/urls/:shortURL/delete", (req, res) => {
-  if (isLoggedIn(users, req.cookies)){ //Only the creator of the URL can delete the link
-  delete urlDatabase[req.params.shortURL];
-  res.redirect("/urls");
+  if (isLoggedIn(users, req.cookies)) {
+    //Only the creator of the URL can delete the link
+    delete urlDatabase[req.params.shortURL];
+    res.redirect("/urls");
   } else {
     res.redirect("/login");
   }
-  
 });
 
 //Edit a URL
 app.post("/urls/:id", (req, res) => {
-  if (isLoggedIn(users, req.cookies)) { //Only the creater of the URL can edit their URLS
+  if (isLoggedIn(users, req.cookies)) {
+    //Only the creater of the URL can edit their URLS
     urlDatabase[req.params.id].longURL = req.body.longURL; // { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
-  res.redirect(`/urls/${req.params.shortURL}`);
+    res.redirect(`/urls/${req.params.shortURL}`);
   } else {
     res.redirect("/login");
   }
-
 });
 
 //Register a new user
@@ -157,13 +162,14 @@ app.post("/register", (req, res) => {
     //checks if email is already registered
     res.sendStatus(400);
   }
-const saltRounds = 10;
-const hash = bcrypt.hash(req.body.password, saltRounds);
+
+  const hashedPassword = bcrypt.hashSync(req.body.password, 10);
+  
   let id = generateRandomString();
   users[id] = {
     id,
     email: req.body.email,
-    password: hash 
+    password: hashedPassword
   };
 
   res.cookie("user_id", id);
@@ -178,8 +184,14 @@ app.post("/login", (req, res) => {
     //if a user with that email cannot be found
     res.sendStatus(403);
   }
-  if (user.password !== req.body.password) {
+  if (!bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword1)) {
     //if given password in the form with the existing user's password does not match
+    res.sendStatus(403);
+  }
+  if (!bcrypt.compareSync("dishwasher-funk", hashedPassword2)) {
+    res.sendStatus(403);
+  }
+  if (!bcrypt.compareSync(req.body.password, users[user].password)) {
     res.sendStatus(403);
   }
 
@@ -195,8 +207,6 @@ app.post("/logout", (req, res) => {
   res.redirect("/urls");
 });
 
-
-
 //NEW URL
 app.post("/urls", (req, res) => {
   const randomStr = generateRandomString();
@@ -205,14 +215,14 @@ app.post("/urls", (req, res) => {
     userID: req.cookies.user_id
   };
 
-  console.log("url database: ", urlDatabase, req.body)
+  console.log("url database: ", urlDatabase, req.body);
 
   res.redirect(`/urls/${randomStr}`);
 });
 
 //catch all route
 app.get("*", (req, res) => {
-  res.redirect('/urls');
+  res.redirect("/urls");
 });
 
 app.listen(PORT, () => {
