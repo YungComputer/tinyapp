@@ -4,17 +4,20 @@ const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
-const bcrypt = require('bcrypt');
-const salt = 10;
-const plainTextPassword1 = "purple-monkey-dinosaur"
+const bcrypt = require("bcrypt");
+// const saltRounds = 10;
+// const plainTextPassword1 = "purple-monkey-dinosaur";
+// const plainTextPassword2 = "dishwasher-funk";
+// const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, salt);
+// const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, salt);
 
 function generateRandomString() {
-  return randomatic("aA0", 6);
+  return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
 }
 //checks if email is already in database
 const checkEmail = function(userDatabase, email) {
   for (const userId in userDatabase) {
-    if(userDatabase[userId].email === email) {
+    if (userDatabase[userId].email === email) {
       return userDatabase[userId];
     }
   }
@@ -29,7 +32,7 @@ const isLoggedIn = function(database, cookie) {
     }
   }
   return null;
-}
+};
 
 //returns the URLS where the userID is equal to the ID of the currently logged in user
 const urlsForUser = function(id) {
@@ -37,9 +40,10 @@ const urlsForUser = function(id) {
   for (const url in urlDatabase) {
     // console.log("URL: ", urlDatabase[url].userID)
     if (urlDatabase[url].userID === id) {
-      result[url] = urlDatabase[url].longURL
+      result[url] = urlDatabase[url].longURL;
     }
-  } return result;
+  }
+  return result;
 };
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -52,34 +56,33 @@ const urlDatabase = {
   "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
 };
 
-const users = { 
-  "userRandomID": {
-    id: "userRandomID", 
-    email: "user@example.com", 
+const users = {
+  userRandomID: {
+    id: "userRandomID",
+    email: "user@example.com",
     password: "purple-monkey-dinosaur"
   },
-  "user2RandomID": {
-    id: "user2RandomID", 
-    email: "user2@example.com", 
+  user2RandomID: {
+    id: "user2RandomID",
+    email: "user2@example.com",
     password: "dishwasher-funk"
   }
-}
+};
 
 //Register GET endpoint
 app.get("/register", (req, res) => {
-  console.log("hello");
+
   res.render("urls_register");
 });
 
 app.get("/urls", (req, res) => {
-  let templateVars = { 
-    urls: urlsForUser(req.cookies.user_id), 
+  const userURLS = urlsForUser(req.cookies.user_id);
+  let templateVars = {
+    urls: userURLS,
     user: users[req.cookies.user_id]
-    
-   };
-   console.log(urlsForUser(req.cookies.user_id));
+  };
   res.render("urls_index", templateVars);
-  });
+});
 
 app.get("/urls/new", (req, res) => {
   if (isLoggedIn(users, req.cookies)) {
@@ -90,9 +93,10 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.get("/urls/:shortURL", (req, res) => {
+  console.log(urlDatabase);
   let templateVars = {
     shortURL: req.params.shortURL,
-    longURL: urlDatabase[req.params.shortURL]["longURL"], 
+    longURL:  urlDatabase[req.params.shortURL] && urlDatabase[req.params.shortURL]["longURL"],
     user: users[req.cookies.user_id]
   };
   res.render("urls_show", templateVars);
@@ -102,41 +106,64 @@ app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
+// app.get("/hello", (req, res) => {
+//   res.send("<html><body>Hello <b>World</b></body></html>\n");
+// });
 
 app.get("/login", (req, res) => {
   res.render("urls_login.ejs");
-})
+});
 
 app.get("/register", (req, res) => {
   res.render("urls_register.ejs");
-})
+});
 
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   res.redirect(longURL);
 });
 
-//Delete
-app.post("/urls/:shortURL/delete", (req, res) => {
-  delete urlDatabase[req.params.shortURL];
+//Read
+app.get("/u/:id", (req, res) => {
+  const urls = urlDatabase[req.params.userID];
+  res.redirect('/urls', urls)
+})
 
+//Delete a URL
+app.post("/urls/:shortURL/delete", (req, res) => {
+  if (isLoggedIn(users, req.cookies)){ //Only the creator of the URL can delete the link
+  delete urlDatabase[req.params.shortURL];
   res.redirect("/urls");
+  } else {
+    res.redirect("/login");
+  }
+  
 });
 
-//Registration
-app.post("/register", (req, res) => {
-if (checkEmail(users, req.body.email)) { //checks if email is already registered
-  res.sendStatus(400);
-}
+//Edit a URL
+app.post("/urls/:id", (req, res) => {
+  if (isLoggedIn(users, req.cookies)) { //Only the creater of the URL can edit their URLS
+    urlDatabase[req.params.id].longURL = req.body.longURL; // { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
+  res.redirect(`/urls/${req.params.shortURL}`);
+  } else {
+    res.redirect("/login");
+  }
 
+});
+
+//Register a new user
+app.post("/register", (req, res) => {
+  if (checkEmail(users, req.body.email)) {
+    //checks if email is already registered
+    res.sendStatus(400);
+  }
+const saltRounds = 10;
+const hash = bcrypt.hash(req.body.password, saltRounds);
   let id = generateRandomString();
   users[id] = {
     id,
     email: req.body.email,
-    password: bcrypt.hash(req.body.password, salt) //hash the password
+    password: hash 
   };
 
   res.cookie("user_id", id);
@@ -144,17 +171,17 @@ if (checkEmail(users, req.body.email)) { //checks if email is already registered
   res.redirect("/urls");
 });
 
-
 //login
 app.post("/login", (req, res) => {
   let user = checkEmail(users, req.body.email);
-  if (!user) { //if a user with that email cannot be found
-    res.sendStatus(403)
+  if (!user) {
+    //if a user with that email cannot be found
+    res.sendStatus(403);
   }
-   if(user.password !== req.body.password) { //if given password in the form with the existing user's password does not match
-    res.sendStatus(403)
-}
-bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword);
+  if (user.password !== req.body.password) {
+    //if given password in the form with the existing user's password does not match
+    res.sendStatus(403);
+  }
 
   res.cookie("user_id", user.id);
 
@@ -170,28 +197,23 @@ app.post("/logout", (req, res) => {
 
 
 
-//Edit
-app.post("/urls/:id", (req, res) => {
-  
-  urlDatabase[req.params.id] = req.body.longURL;
-
-  res.redirect("/urls");
-});
-
-
 //NEW URL
 app.post("/urls", (req, res) => {
-   //Log the POST request body to the console
   const randomStr = generateRandomString();
-  urlDatabase[randomStr] = {longURL: req.body.longURL, userID: req.cookies.user_id }
+  urlDatabase[randomStr] = {
+    longURL: req.body.longURL,
+    userID: req.cookies.user_id
+  };
+
+  console.log("url database: ", urlDatabase, req.body)
 
   res.redirect(`/urls/${randomStr}`);
 });
 
-// //catch all route
-// app.get("*", (req, res) => {
-//   res.redirect('/urls');
-// });
+//catch all route
+app.get("*", (req, res) => {
+  res.redirect('/urls');
+});
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
