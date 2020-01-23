@@ -4,11 +4,14 @@ const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
+const bcrypt = require('bcrypt');
+const salt = 10;
+const plainTextPassword1 = "purple-monkey-dinosaur"
 
 function generateRandomString() {
   return randomatic("aA0", 6);
 }
-
+//checks if email is already in database
 const checkEmail = function(userDatabase, email) {
   for (const userId in userDatabase) {
     if(userDatabase[userId].email === email) {
@@ -18,14 +21,35 @@ const checkEmail = function(userDatabase, email) {
   return null;
 };
 
+//checks if the user is currently logged in
+const isLoggedIn = function(database, cookie) {
+  for (const user in database) {
+    if (database[user].id === cookie.user_id) {
+      return true;
+    }
+  }
+  return null;
+}
+
+//returns the URLS where the userID is equal to the ID of the currently logged in user
+const urlsForUser = function(id) {
+  let result = {};
+  for (const url in urlDatabase) {
+    // console.log("URL: ", urlDatabase[url].userID)
+    if (urlDatabase[url].userID === id) {
+      result[url] = urlDatabase[url].longURL
+    }
+  } return result;
+};
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.set("view engine", "ejs");
 
 const urlDatabase = {
-  b2xVn2: "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  "3rQmlu": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
+  "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
 };
 
 const users = { 
@@ -43,23 +67,32 @@ const users = {
 
 //Register GET endpoint
 app.get("/register", (req, res) => {
+  console.log("hello");
   res.render("urls_register");
 });
 
 app.get("/urls", (req, res) => {
-  console.log(req.cookies.users);
-  let templateVars = { user: users[req.cookies.user_id], urls: urlDatabase };
+  let templateVars = { 
+    urls: urlsForUser(req.cookies.user_id), 
+    user: users[req.cookies.user_id]
+    
+   };
+   console.log(urlsForUser(req.cookies.user_id));
   res.render("urls_index", templateVars);
-});
+  });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new", { user: req.cookies.user_id });
+  if (isLoggedIn(users, req.cookies)) {
+    res.render("urls_new", { user: req.cookies.user_id });
+  } else {
+    res.redirect("/login");
+  }
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   let templateVars = {
     shortURL: req.params.shortURL,
-    longURL: urlDatabase[req.params.shortURL],
+    longURL: urlDatabase[req.params.shortURL]["longURL"], 
     user: users[req.cookies.user_id]
   };
   res.render("urls_show", templateVars);
@@ -69,9 +102,9 @@ app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
-// app.get("/hello", (req, res) => {
-//   res.send("<html><body>Hello <b>World</b></body></html>\n");
-// });
+app.get("/hello", (req, res) => {
+  res.send("<html><body>Hello <b>World</b></body></html>\n");
+});
 
 app.get("/login", (req, res) => {
   res.render("urls_login.ejs");
@@ -103,7 +136,7 @@ if (checkEmail(users, req.body.email)) { //checks if email is already registered
   users[id] = {
     id,
     email: req.body.email,
-    password: req.body.password
+    password: bcrypt.hash(req.body.password, salt) //hash the password
   };
 
   res.cookie("user_id", id);
@@ -121,6 +154,7 @@ app.post("/login", (req, res) => {
    if(user.password !== req.body.password) { //if given password in the form with the existing user's password does not match
     res.sendStatus(403)
 }
+bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword);
 
   res.cookie("user_id", user.id);
 
@@ -138,18 +172,19 @@ app.post("/logout", (req, res) => {
 
 //Edit
 app.post("/urls/:id", (req, res) => {
-  console.log(req.body);
+  
   urlDatabase[req.params.id] = req.body.longURL;
 
   res.redirect("/urls");
 });
 
 
-//UPDATE A RESOURCE
+//NEW URL
 app.post("/urls", (req, res) => {
-  console.log(req.body); //Log the POST request body to the console
+   //Log the POST request body to the console
   const randomStr = generateRandomString();
-  urlDatabase[randomStr] = req.body.longURL;
+  urlDatabase[randomStr] = {longURL: req.body.longURL, userID: req.cookies.user_id }
+
   res.redirect(`/urls/${randomStr}`);
 });
 
