@@ -1,9 +1,13 @@
 const randomatic = require("randomatic");
 const express = require("express");
+const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
-const cookieParser = require("cookie-parser");
+app.use(cookieSession({
+  name: 'session',
+  keys: ["a", "b", "c"]
+}))
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const plainTextPassword1 = "purple-monkey-dinosaur";
@@ -51,7 +55,7 @@ const urlsForUser = function(id) {
 };
 
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cookieParser());
+
 
 app.set("view engine", "ejs");
 
@@ -79,17 +83,17 @@ app.get("/register", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  const userURLS = urlsForUser(req.cookies.user_id);
+  const userURLS = urlsForUser(req.session.user_id);
   let templateVars = {
     urls: userURLS,
-    user: users[req.cookies.user_id]
+    user: users[req.session.user_id]
   };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  if (isLoggedIn(users, req.cookies)) {
-    res.render("urls_new", { user: req.cookies.user_id });
+  if (isLoggedIn(users, req.session)) {
+    res.render("urls_new", { user: req.session.user_id });
   } else {
     res.redirect("/login");
   }
@@ -102,7 +106,7 @@ app.get("/urls/:shortURL", (req, res) => {
     longURL:
       urlDatabase[req.params.shortURL] &&
       urlDatabase[req.params.shortURL]["longURL"],
-    user: users[req.cookies.user_id]
+    user: users[req.session.user_id]
   };
   res.render("urls_show", templateVars);
 });
@@ -136,7 +140,7 @@ app.get("/u/:id", (req, res) => {
 
 //Delete a URL
 app.post("/urls/:shortURL/delete", (req, res) => {
-  if (isLoggedIn(users, req.cookies)) {
+  if (isLoggedIn(users, req.session)) {
     //Only the creator of the URL can delete the link
     delete urlDatabase[req.params.shortURL];
     res.redirect("/urls");
@@ -147,7 +151,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 //Edit a URL
 app.post("/urls/:id", (req, res) => {
-  if (isLoggedIn(users, req.cookies)) {
+  if (isLoggedIn(users, req.session)) {
     //Only the creater of the URL can edit their URLS
     urlDatabase[req.params.id].longURL = req.body.longURL; // { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
     res.redirect(`/urls/${req.params.shortURL}`);
@@ -172,7 +176,7 @@ app.post("/register", (req, res) => {
     password: hashedPassword
   };
 
-  res.cookie("user_id", id);
+  req.session.user_id = id;
 
   res.redirect("/urls");
 });
@@ -195,7 +199,7 @@ app.post("/login", (req, res) => {
     res.sendStatus(403);
   }
 
-  res.cookie("user_id", user.id);
+  res.session.user_id = user.id;
 
   res.redirect("/urls");
 });
@@ -212,7 +216,7 @@ app.post("/urls", (req, res) => {
   const randomStr = generateRandomString();
   urlDatabase[randomStr] = {
     longURL: req.body.longURL,
-    userID: req.cookies.user_id
+    userID: req.session.user_id
   };
 
   console.log("url database: ", urlDatabase, req.body);
