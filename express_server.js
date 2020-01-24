@@ -12,17 +12,15 @@ app.use(
   })
 );
 const bcrypt = require("bcrypt");
+
+//Password Encryption
 const saltRounds = 10;
 const plainTextPassword1 = "purple-monkey-dinosaur";
 const plainTextPassword2 = "dishwasher-funk";
-// const newUserPassword = req.body.password;
 const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, saltRounds);
 const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, saltRounds);
-// const hashedPassword3 = bcrypt.hashSync(newUserPassword, saltRounds);
 
-
-bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword1); // returns true
-
+//Generate random string for Tiny URL
 function generateRandomString() {
   return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
 }
@@ -33,8 +31,8 @@ const isLoggedIn = function(database, cookie) {
     if (database[user].id === cookie.user_id) {
       return true;
     }
-}
-return null;
+  }
+  return null;
 };
 
 //returns the URLS where the userID is equal to the ID of the currently logged in user
@@ -42,11 +40,10 @@ const urlsForUser = function(id) {
   let result = {};
   for (const url in urlDatabase) {
     if (urlDatabase[url].userID === id) {
-       result[url] = urlDatabase[url].longURL;
+      result[url] = urlDatabase[url].longURL;
     }
   }
   return result;
-  
 };
 
 //APP USE AND SET TO VIEW EJS
@@ -81,17 +78,17 @@ app.get("/register", (req, res) => {
 
 app.get("/urls", (req, res) => {
   if (isLoggedIn(users, req.session)) {
-  const userURLS = urlsForUser(req.session.user_id);
-  let templateVars = {
-    urls: userURLS,
-    user: users[req.session.user_id]
+    const userURLS = urlsForUser(req.session.user_id);
+    let templateVars = {
+      urls: userURLS,
+      user: users[req.session.user_id]
+    };
+    res.render("urls_index", templateVars);
+  } else {
+    res.redirect("/login");
+    // Only logged in users can access the URL Page, and only those logged in users can see their own URLS. Do not want to put an error message here as URLS is the main page.
   }
-  res.render("urls_index", templateVars);
-} else {
-  res.sendStatus(403); // Only logged in users can access the URL Page, and only those logged in users can see their own URLS
-}
 });
-
 
 app.get("/urls/new", (req, res) => {
   if (isLoggedIn(users, req.session)) {
@@ -108,14 +105,18 @@ app.get("/urls/new", (req, res) => {
 
 //for /urls/:id
 app.get("/urls/:shortURL", (req, res) => {
-  let templateVars = {
-    shortURL: req.params.shortURL,
-    longURL:
-      urlDatabase[req.params.shortURL] &&
-      urlDatabase[req.params.shortURL]["longURL"],
-    user: users[req.session.user_id]
-  };
-  res.render("urls_show", templateVars);
+  if (isLoggedIn(users, req.session)) {
+    let templateVars = {
+      shortURL: req.params.shortURL,
+      longURL:
+        urlDatabase[req.params.shortURL] &&
+        urlDatabase[req.params.shortURL]["longURL"],
+      user: users[req.session.user_id]
+    };
+    res.render("urls_show", templateVars);
+  } else {
+    res.sendStatus(401);
+  }
 });
 
 //Login Page
@@ -143,7 +144,7 @@ app.get("/u/:id", (req, res) => {
   res.redirect("/urls", urls);
 });
 
-//POST ENDPOINTS
+//POST ENDPOINTS --------------------------------------
 
 //Delete a URL
 app.post("/urls/:shortURL/delete", (req, res) => {
@@ -152,7 +153,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
     delete urlDatabase[req.params.shortURL];
     res.redirect("/urls");
   } else {
-    res.sendStatus(403);
+    res.sendStatus(401);
   }
 });
 
@@ -160,21 +161,25 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 app.post("/urls/:id", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     //Only the creater of the URL can edit and see their URLS
-    urlDatabase[req.params.id].longURL = req.body.longURL; 
+    urlDatabase[req.params.id].longURL = req.body.longURL;
     res.redirect("/urls");
   } else {
-    res.sendStatus(403);
+    res.sendStatus(401);
   }
 });
 
 //Register a new user
 app.post("/register", (req, res) => {
+  if (req.body.email === "" || req.body.password === "") {
+    res.sendStatus(406);
+  }
   if (getUserByEmail(users, req.body.email)) {
     //checks if email is already registered
     res.sendStatus(400);
   }
 
   const hashedPassword = bcrypt.hashSync(req.body.password, 10);
+  //Hash the new password and save to database
 
   let id = generateRandomString();
   users[id] = {
@@ -195,9 +200,9 @@ app.post("/login", (req, res) => {
     req.session.user_id = user.id;
     return res.redirect("/urls");
   } else {
-    res.sendStatus(403);
+    res.sendStatus(406);
   }
-  });
+});
 
 //logout
 app.post("/logout", (req, res) => {
@@ -206,7 +211,7 @@ app.post("/logout", (req, res) => {
   res.redirect("/urls");
 });
 
-//NEW URL
+//Adding new URL
 app.post("/urls", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     const randomStr = generateRandomString();
