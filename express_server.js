@@ -59,7 +59,7 @@ app.set("view engine", "ejs");
 
 const urlDatabase = {
   "3rQmlu": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
-  "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
+  "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" },
 };
 
 const users = {
@@ -91,14 +91,19 @@ app.get("/urls", (req, res) => {
 
 app.get("/urls/new", (req, res) => {
   if (isLoggedIn(users, req.session)) {
-    res.render("urls_new", { user: req.session.user_id });
+    const userURLS = urlsForUser(req.session.user_id);
+    let templateVars = {
+      urls: userURLS,
+      user: users[req.session.user_id]
+    };
+    res.render("urls_new", templateVars);
   } else {
     res.redirect("/login");
   }
 });
 
+//for /urls/:id
 app.get("/urls/:shortURL", (req, res) => {
-  console.log(urlDatabase);
   let templateVars = {
     shortURL: req.params.shortURL,
     longURL:
@@ -113,16 +118,19 @@ app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
+//Login Page
 app.get("/login", (req, res) => {
   res.render("urls_login.ejs");
 });
 
+//Register page
 app.get("/register", (req, res) => {
   res.render("urls_register.ejs");
 });
 
+//Go to shortURL link website
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
 
@@ -214,8 +222,6 @@ app.post("/urls", (req, res) => {
     longURL: req.body.longURL,
     userID: req.session.user_id
   };
-
-  console.log("url database: ", urlDatabase, req.body);
 
   res.redirect(`/urls/${randomStr}`);
 });
