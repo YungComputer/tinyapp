@@ -1,6 +1,6 @@
 const randomatic = require("randomatic");
 const express = require("express");
-const { getUserByEmail } = require("./helpers");
+const { getUserByEmail, isLoggedIn, urlsForUser } = require("./helpers");
 const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
@@ -20,31 +20,10 @@ const plainTextPassword2 = "dishwasher-funk";
 const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, saltRounds);
 const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, saltRounds);
 
-//Generate random string for Tiny URL
+//Generates a random string for a new Tiny URL
 function generateRandomString() {
   return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
 }
-
-//checks if the user is currently logged in
-const isLoggedIn = function(database, cookie) {
-  for (const user in database) {
-    if (database[user].id === cookie.user_id) {
-      return true;
-    }
-  }
-  return null;
-};
-
-//returns the URLS where the userID is equal to the ID of the currently logged in user
-const urlsForUser = function(id) {
-  let result = {};
-  for (const url in urlDatabase) {
-    if (urlDatabase[url].userID === id) {
-      result[url] = urlDatabase[url].longURL;
-    }
-  }
-  return result;
-};
 
 //APP USE AND SET TO VIEW EJS
 app.use(bodyParser.urlencoded({ extended: true }));
