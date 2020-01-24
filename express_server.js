@@ -11,9 +11,9 @@ app.use(
     keys: ["a", "b", "c"]
   })
 );
-const bcrypt = require("bcrypt");
 
 //Password Encryption
+const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const plainTextPassword1 = "purple-monkey-dinosaur";
 const plainTextPassword2 = "dishwasher-funk";
@@ -27,16 +27,16 @@ function generateRandomString() {
 
 //APP USE AND SET TO VIEW EJS
 app.use(bodyParser.urlencoded({ extended: true }));
-
 app.set("view engine", "ejs");
 
-//DATABASES
-
+//DATABASES --------------------------------------
+//URL Database
 const urlDatabase = {
   "3rQmlu": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
   "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
 };
 
+//User Database
 const users = {
   userRandomID: {
     id: "userRandomID",
@@ -50,23 +50,9 @@ const users = {
   }
 };
 
-//GET ENDPOINTS
+//GET ENDPOINTS --------------------------------------
 app.get("/register", (req, res) => {
   res.render("urls_register");
-});
-
-app.get("/urls", (req, res) => {
-  if (isLoggedIn(users, req.session)) {
-    const userURLS = urlsForUser(req.session.user_id);
-    let templateVars = {
-      urls: userURLS,
-      user: users[req.session.user_id]
-    };
-    res.render("urls_index", templateVars);
-  } else {
-    res.redirect("/login");
-    // Only logged in users can access the URL Page, and only those logged in users can see their own URLS. Do not want to put an error message here as URLS is the main page.
-  }
 });
 
 app.get("/urls/new", (req, res) => {
@@ -98,6 +84,21 @@ app.get("/urls/:shortURL", (req, res) => {
   }
 });
 
+//URLs homepage
+app.get("/urls", (req, res) => {
+  if (isLoggedIn(users, req.session)) {
+    const userURLS = urlsForUser(req.session.user_id);
+    let templateVars = {
+      urls: userURLS,
+      user: users[req.session.user_id]
+    };
+    res.render("urls_index", templateVars);
+  } else {
+    res.redirect("/login");
+    // Only logged in users can access the URL Page, and only those logged in users can see their own URLS. Redirect to login page if user is not logged in.
+  }
+});
+
 //Login Page
 app.get("/login", (req, res) => {
   if (isLoggedIn(users, req.session)) {
@@ -125,7 +126,7 @@ app.get("/u/:id", (req, res) => {
 
 //POST ENDPOINTS --------------------------------------
 
-//Delete a URL
+//Delete a URL entry
 app.post("/urls/:shortURL/delete", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     //Only the creator of the URL can delete the link
@@ -136,7 +137,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   }
 });
 
-//Edit a URL
+//Edit a URL entry
 app.post("/urls/:id", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     //Only the creater of the URL can edit and see their URLS
@@ -172,7 +173,7 @@ app.post("/register", (req, res) => {
   res.redirect("/urls");
 });
 
-//login
+//login, verify if username and password match
 app.post("/login", (req, res) => {
   let user = getUserByEmail(users, req.body.email);
   if (user && bcrypt.compareSync(req.body.password, user.password)) {
