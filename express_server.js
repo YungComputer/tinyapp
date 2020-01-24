@@ -1,6 +1,6 @@
 const randomatic = require("randomatic");
 const express = require("express");
-const {getUserByEmail} = require('./helpers');
+const { getUserByEmail } = require("./helpers");
 const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
@@ -20,12 +20,12 @@ const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, saltRounds);
 const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, saltRounds);
 // const hashedPassword3 = bcrypt.hashSync(newUserPassword, saltRounds);
 
+
 bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword1); // returns true
 
 function generateRandomString() {
   return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
 }
-
 
 //checks if the user is currently logged in
 const isLoggedIn = function(database, cookie) {
@@ -33,8 +33,8 @@ const isLoggedIn = function(database, cookie) {
     if (database[user].id === cookie.user_id) {
       return true;
     }
-  }
-  return null;
+}
+return null;
 };
 
 //returns the URLS where the userID is equal to the ID of the currently logged in user
@@ -54,24 +54,23 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("view engine", "ejs");
 
-
 //DATABASES
 
 const urlDatabase = {
   "3rQmlu": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
-  "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" },
+  "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
 };
 
 const users = {
   userRandomID: {
     id: "userRandomID",
     email: "user@example.com",
-    password: "purple-monkey-dinosaur"
+    password: hashedPassword1
   },
   user2RandomID: {
     id: "user2RandomID",
     email: "user2@example.com",
-    password: "dishwasher-funk"
+    password: hashedPassword2
   }
 };
 
@@ -86,6 +85,7 @@ app.get("/urls", (req, res) => {
     urls: userURLS,
     user: users[req.session.user_id]
   };
+  console.log(templateVars);
   res.render("urls_index", templateVars);
 });
 
@@ -114,12 +114,11 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
-});
-
 //Login Page
 app.get("/login", (req, res) => {
+  if (isLoggedIn(users, req.session)) {
+    res.redirect("/urls");
+  }
   res.render("urls_login.ejs");
 });
 
@@ -149,18 +148,18 @@ app.post("/urls/:shortURL/delete", (req, res) => {
     delete urlDatabase[req.params.shortURL];
     res.redirect("/urls");
   } else {
-    res.redirect("/login");
+    res.sendStatus(403);
   }
 });
 
 //Edit a URL
 app.post("/urls/:id", (req, res) => {
   if (isLoggedIn(users, req.session)) {
-    //Only the creater of the URL can edit their URLS
-    urlDatabase[req.params.id].longURL = req.body.longURL; // { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
-    res.redirect(`/urls/${req.params.shortURL}`);
+    //Only the creater of the URL can edit and see their URLS
+    urlDatabase[req.params.id].longURL = req.body.longURL; 
+    res.redirect("/urls");
   } else {
-    res.redirect("/login");
+    res.sendStatus(403);
   }
 });
 
@@ -188,42 +187,34 @@ app.post("/register", (req, res) => {
 //login
 app.post("/login", (req, res) => {
   let user = getUserByEmail(users, req.body.email);
-  if (!user) {
-    //if a user with that email cannot be found
+  console.log("THIS IS THE USER!!!: ",user);
+  console.log();
+  if (user && bcrypt.compareSync(req.body.password, user.password)) {
+    req.session.user_id = user.userID;
+    return res.redirect("/urls");
+  } else {
     res.sendStatus(403);
   }
-  if (!bcrypt.compareSync("purple-monkey-dinosaur", hashedPassword1)) {
-    //if given password in the form with the existing user's password does not match
-    res.sendStatus(403);
-  }
-  if (!bcrypt.compareSync("dishwasher-funk", hashedPassword2)) {
-    res.sendStatus(403);
-  }
-  if (!bcrypt.compareSync(req.body.password, users[user].password)) {
-    res.sendStatus(403);
-  }
-
-  res.session.user_id = user.id;
-
-  res.redirect("/urls");
-});
+  });
 
 //logout
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
 
   res.redirect("/urls");
 });
 
 //NEW URL
 app.post("/urls", (req, res) => {
-  const randomStr = generateRandomString();
-  urlDatabase[randomStr] = {
-    longURL: req.body.longURL,
-    userID: req.session.user_id
-  };
-
-  res.redirect(`/urls/${randomStr}`);
+  if (isLoggedIn(users, req.session)) {
+    const randomStr = generateRandomString();
+    urlDatabase[randomStr] = {
+      longURL: req.body.longURL,
+      userID: req.session.user_id
+    };
+    res.redirect(`/urls/${randomStr}`);
+  }
+  res.sendStatus(403);
 });
 
 //catch all route
