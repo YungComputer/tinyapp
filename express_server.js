@@ -41,12 +41,12 @@ return null;
 const urlsForUser = function(id) {
   let result = {};
   for (const url in urlDatabase) {
-    // console.log("URL: ", urlDatabase[url].userID)
     if (urlDatabase[url].userID === id) {
-      result[url] = urlDatabase[url].longURL;
+       result[url] = urlDatabase[url].longURL;
     }
   }
   return result;
+  
 };
 
 //APP USE AND SET TO VIEW EJS
@@ -80,14 +80,18 @@ app.get("/register", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
+  if (isLoggedIn(users, req.session)) {
   const userURLS = urlsForUser(req.session.user_id);
   let templateVars = {
     urls: userURLS,
     user: users[req.session.user_id]
-  };
-  console.log(templateVars);
+  }
   res.render("urls_index", templateVars);
+} else {
+  res.sendStatus(403); // Only logged in users can access the URL Page, and only those logged in users can see their own URLS
+}
 });
+
 
 app.get("/urls/new", (req, res) => {
   if (isLoggedIn(users, req.session)) {
@@ -187,10 +191,8 @@ app.post("/register", (req, res) => {
 //login
 app.post("/login", (req, res) => {
   let user = getUserByEmail(users, req.body.email);
-  console.log("THIS IS THE USER!!!: ",user);
-  console.log();
   if (user && bcrypt.compareSync(req.body.password, user.password)) {
-    req.session.user_id = user.userID;
+    req.session.user_id = user.id;
     return res.redirect("/urls");
   } else {
     res.sendStatus(403);
