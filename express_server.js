@@ -1,6 +1,6 @@
 const randomatic = require("randomatic");
 const express = require("express");
-const { getUserByEmail, isLoggedIn, urlsForUser } = require("./helpers");
+const { getUserByEmail } = require("./helpers");
 const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
@@ -11,32 +11,53 @@ app.use(
     keys: ["a", "b", "c"]
   })
 );
+const bcrypt = require("bcrypt");
 
 //Password Encryption
-const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const plainTextPassword1 = "purple-monkey-dinosaur";
 const plainTextPassword2 = "dishwasher-funk";
 const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, saltRounds);
 const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, saltRounds);
 
-//Generates a random string for a new Tiny URL
+//Generate random string for Tiny URL
 function generateRandomString() {
   return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
 }
 
+//checks if the user is currently logged in
+const isLoggedIn = function(database, cookie) {
+  for (const user in database) {
+    if (database[user].id === cookie.user_id) {
+      return true;
+    }
+  }
+  return null;
+};
+
+//returns the URLS where the userID is equal to the ID of the currently logged in user
+const urlsForUser = function(id) {
+  let result = {};
+  for (const url in urlDatabase) {
+    if (urlDatabase[url].userID === id) {
+      result[url] = urlDatabase[url].longURL;
+    }
+  }
+  return result;
+};
+
 //APP USE AND SET TO VIEW EJS
 app.use(bodyParser.urlencoded({ extended: true }));
+
 app.set("view engine", "ejs");
 
-//DATABASES --------------------------------------
-//URL Database
+//DATABASES
+
 const urlDatabase = {
   "3rQmlu": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
   "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
 };
 
-//User Database
 const users = {
   userRandomID: {
     id: "userRandomID",
@@ -50,9 +71,23 @@ const users = {
   }
 };
 
-//GET ENDPOINTS --------------------------------------
+//GET ENDPOINTS
 app.get("/register", (req, res) => {
   res.render("urls_register");
+});
+
+app.get("/urls", (req, res) => {
+  if (isLoggedIn(users, req.session)) {
+    const userURLS = urlsForUser(req.session.user_id);
+    let templateVars = {
+      urls: userURLS,
+      user: users[req.session.user_id]
+    };
+    res.render("urls_index", templateVars);
+  } else {
+    res.redirect("/login");
+    // Only logged in users can access the URL Page, and only those logged in users can see their own URLS. Do not want to put an error message here as URLS is the main page.
+  }
 });
 
 app.get("/urls/new", (req, res) => {
@@ -68,7 +103,7 @@ app.get("/urls/new", (req, res) => {
   }
 });
 
-//for /urls/:id
+//Show the tinyURL, longURL, edit and delete buttons
 app.get("/urls/:shortURL", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     let templateVars = {
@@ -81,21 +116,6 @@ app.get("/urls/:shortURL", (req, res) => {
     res.render("urls_show", templateVars);
   } else {
     res.sendStatus(401);
-  }
-});
-
-//URLs homepage
-app.get("/urls", (req, res) => {
-  if (isLoggedIn(users, req.session)) {
-    const userURLS = urlsForUser(req.session.user_id);
-    let templateVars = {
-      urls: userURLS,
-      user: users[req.session.user_id]
-    };
-    res.render("urls_index", templateVars);
-  } else {
-    res.redirect("/login");
-    // Only logged in users can access the URL Page, and only those logged in users can see their own URLS. Redirect to login page if user is not logged in.
   }
 });
 
@@ -112,7 +132,7 @@ app.get("/register", (req, res) => {
   res.render("urls_register.ejs");
 });
 
-//Go to shortURL link website
+//Go to the website the Tiny URL links to
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
@@ -126,7 +146,7 @@ app.get("/u/:id", (req, res) => {
 
 //POST ENDPOINTS --------------------------------------
 
-//Delete a URL entry
+//Delete a URL
 app.post("/urls/:shortURL/delete", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     //Only the creator of the URL can delete the link
@@ -137,7 +157,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   }
 });
 
-//Edit a URL entry
+//Edit a URL
 app.post("/urls/:id", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     //Only the creater of the URL can edit and see their URLS
@@ -173,7 +193,7 @@ app.post("/register", (req, res) => {
   res.redirect("/urls");
 });
 
-//login, verify if username and password match
+//login
 app.post("/login", (req, res) => {
   let user = getUserByEmail(users, req.body.email);
   if (user && bcrypt.compareSync(req.body.password, user.password)) {
