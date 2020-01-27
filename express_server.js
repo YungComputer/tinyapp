@@ -48,14 +48,13 @@ const users = {
 
 app.get("/", (req, res) => {
   if (req.session.user_id) {
-    res.resdirect("/urls");
+    res.redirect("/urls");
   } else {
     res.redirect("/login");
   }
 });
 
 app.get("/login", (req, res) => {
-  console.log(users);
   if (isLoggedIn(users, req.session)) {
     res.redirect("/urls");
   }
@@ -96,12 +95,12 @@ app.post("/register", (req, res) => {
     };
     req.session.user_id = id;
     res.redirect("/urls");
-    }  
+  }
 });
 
 app.get("/urls", (req, res) => {
   if (isLoggedIn(users, req.session)) {
-    const userURLS = urlsForUser(req.session.user_id);
+    const userURLS = urlsForUser(req.session.user_id, urlDatabase);
     let templateVars = {
       urls: userURLS,
       user: users[req.session.user_id]
@@ -113,10 +112,24 @@ app.get("/urls", (req, res) => {
   }
 });
 
+app.post("/urls", (req, res) => {
+  if (isLoggedIn(users, req.session)) {
+    const randomStr = generateRandomString();
+    urlDatabase[randomStr] = {
+      longURL: req.body.longURL,
+      userID: req.session.user_id
+    };
+    res.redirect(`/urls/${randomStr}`);
+  } else {
+    res.send(
+      "Only logged-in users can create new links. Please login or register"
+    );
+  }
+});
 
 app.get("/urls/new", (req, res) => {
   if (isLoggedIn(users, req.session)) {
-    const userURLS = urlsForUser(req.session.user_id);
+    const userURLS = urlsForUser(req.session.user_id, urlDatabase);
     let templateVars = {
       urls: userURLS,
       user: users[req.session.user_id]
@@ -126,23 +139,6 @@ app.get("/urls/new", (req, res) => {
     res.redirect("/urls");
   }
 });
-
-
-app.post("/urls", (req, res) => {
-  if (isLoggedIn(users, req.session)) {
-    const randomStr = generateRandomString();
-    urlDatabase[randomStr] = {
-      longURL: req.body.longURL,
-      userID: req.session.user_id
-    };
-    res.redirect(`/urls/${randomStr}`);
-  }
-  res.send(
-    "Only logged-in users can create new links. Please login or register"
-  );
-});
-
-
 
 app.get("/urls/:shortURL", (req, res) => {
   if (isLoggedIn(users, req.session)) {
@@ -183,7 +179,6 @@ app.get("/u/:id", (req, res) => {
 
 app.post("/urls/:id", (req, res) => {
   if (isLoggedIn(users, req.session)) {
-
     urlDatabase[req.params.id].longURL = req.body.longURL;
     res.redirect("/urls");
   } else {

@@ -26,7 +26,7 @@ const isLoggedIn = function(database, cookie) {
 };
 
 //returns the URLS where the userID is equal to the ID of the currently logged in user
-const urlsForUser = function(id) {
+const urlsForUser = function(id, urlDatabase) {
   let result = {};
   for (const url in urlDatabase) {
     if (urlDatabase[url].userID === id) {
