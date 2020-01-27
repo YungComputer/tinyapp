@@ -1,6 +1,10 @@
-const randomatic = require("randomatic");
 const express = require("express");
-const { getUserByEmail } = require("./helpers");
+const {
+  getUserByEmail,
+  isLoggedIn,
+  generateRandomString,
+  urlsForUser
+} = require("./helpers");
 const cookieSession = require("cookie-session");
 const app = express();
 const PORT = 8080; // default port 8080
@@ -20,38 +24,9 @@ const plainTextPassword2 = "dishwasher-funk";
 const hashedPassword1 = bcrypt.hashSync(plainTextPassword1, saltRounds);
 const hashedPassword2 = bcrypt.hashSync(plainTextPassword2, saltRounds);
 
-//Generate random string for Tiny URL
-function generateRandomString() {
-  return randomatic("aA0", 6); // make a random alphanumeric string of 6 characters
-}
-
-//checks if the user is currently logged in
-const isLoggedIn = function(database, cookie) {
-  for (const user in database) {
-    if (database[user].id === cookie.user_id) {
-      return true;
-    }
-  }
-  return null;
-};
-
-//returns the URLS where the userID is equal to the ID of the currently logged in user
-const urlsForUser = function(id) {
-  let result = {};
-  for (const url in urlDatabase) {
-    if (urlDatabase[url].userID === id) {
-      result[url] = urlDatabase[url].longURL;
-    }
-  }
-  return result;
-};
-
-//APP USE AND SET TO VIEW EJS
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("view engine", "ejs");
-
-//DATABASES
 
 const urlDatabase = {
   "3rQmlu": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
@@ -71,9 +46,57 @@ const users = {
   }
 };
 
-//GET ENDPOINTS
+app.get("/", (req, res) => {
+  if (req.session.user_id) {
+    res.resdirect("/urls");
+  } else {
+    res.redirect("/login");
+  }
+});
+
+app.get("/login", (req, res) => {
+  console.log(users);
+  if (isLoggedIn(users, req.session)) {
+    res.redirect("/urls");
+  }
+  res.render("urls_login.ejs");
+});
+
+app.post("/login", (req, res) => {
+  let user = getUserByEmail(users, req.body.email);
+  if (user && bcrypt.compareSync(req.body.password, user.password)) {
+    req.session.user_id = user.id;
+    res.redirect("/urls");
+  } else {
+    res.send(`Incorrect password for ${req.body.email}. (Error code: 403)`);
+  }
+});
+
+app.post("/logout", (req, res) => {
+  req.session = null;
+  res.redirect("/urls");
+});
+
 app.get("/register", (req, res) => {
-  res.render("urls_register");
+  res.render("urls_register.ejs");
+});
+
+app.post("/register", (req, res) => {
+  if (req.body.email === "" || req.body.password === "") {
+    res.send("Please enter both an email and password. (Error Code: 400");
+  } else if (getUserByEmail(users, req.body.email)) {
+    res.send("Email is already registered. Please login (Error Code: 400");
+  } else {
+    let id = generateRandomString();
+    let hashedPassword = bcrypt.hashSync(req.body.password, 10);
+    users[id] = {
+      id: id,
+      email: req.body.email,
+      password: hashedPassword
+    };
+    req.session.user_id = id;
+    res.redirect("/urls");
+    }  
 });
 
 app.get("/urls", (req, res) => {
@@ -90,6 +113,7 @@ app.get("/urls", (req, res) => {
   }
 });
 
+
 app.get("/urls/new", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     const userURLS = urlsForUser(req.session.user_id);
@@ -99,11 +123,27 @@ app.get("/urls/new", (req, res) => {
     };
     res.render("urls_new", templateVars);
   } else {
-    res.redirect("/login");
+    res.redirect("/urls");
   }
 });
 
-//Show the tinyURL, longURL, edit and delete buttons
+
+app.post("/urls", (req, res) => {
+  if (isLoggedIn(users, req.session)) {
+    const randomStr = generateRandomString();
+    urlDatabase[randomStr] = {
+      longURL: req.body.longURL,
+      userID: req.session.user_id
+    };
+    res.redirect(`/urls/${randomStr}`);
+  }
+  res.send(
+    "Only logged-in users can create new links. Please login or register"
+  );
+});
+
+
+
 app.get("/urls/:shortURL", (req, res) => {
   if (isLoggedIn(users, req.session)) {
     let templateVars = {
@@ -119,109 +159,36 @@ app.get("/urls/:shortURL", (req, res) => {
   }
 });
 
-//Login Page
-app.get("/login", (req, res) => {
-  if (isLoggedIn(users, req.session)) {
-    res.redirect("/urls");
+app.post("/urls/:shortURL/delete", (req, res) => {
+  if (!req.session.user_id) {
+    res.send("Only logged in users can delete links. Please login.");
   }
-  res.render("urls_login.ejs");
+  if (isLoggedIn(users, req.session)) {
+    delete urlDatabase[req.params.shortURL];
+    res.redirect("/urls");
+  } else {
+    res.send("You do not own this URL, therefore you cannot delete it.");
+  }
 });
 
-//Register page
-app.get("/register", (req, res) => {
-  res.render("urls_register.ejs");
-});
-
-//Go to the website the Tiny URL links to
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
 
-//Read
 app.get("/u/:id", (req, res) => {
   const urls = urlDatabase[req.params.userID];
   res.redirect("/urls", urls);
 });
 
-//POST ENDPOINTS --------------------------------------
-
-//Delete a URL
-app.post("/urls/:shortURL/delete", (req, res) => {
-  if (isLoggedIn(users, req.session)) {
-    //Only the creator of the URL can delete the link
-    delete urlDatabase[req.params.shortURL];
-    res.redirect("/urls");
-  } else {
-    res.sendStatus(401);
-  }
-});
-
-//Edit a URL
 app.post("/urls/:id", (req, res) => {
   if (isLoggedIn(users, req.session)) {
-    //Only the creater of the URL can edit and see their URLS
+
     urlDatabase[req.params.id].longURL = req.body.longURL;
     res.redirect("/urls");
   } else {
-    res.sendStatus(401);
+    res.send("Only logged-in users can create a URL! Please login or register");
   }
-});
-
-//Register a new user
-app.post("/register", (req, res) => {
-  if (req.body.email === "" || req.body.password === "") {
-    res.sendStatus(406);
-  }
-  if (getUserByEmail(users, req.body.email)) {
-    //checks if email is already registered
-    res.sendStatus(400);
-  }
-
-  const hashedPassword = bcrypt.hashSync(req.body.password, 10);
-  //Hash the new password and save to database
-
-  let id = generateRandomString();
-  users[id] = {
-    id,
-    email: req.body.email,
-    password: hashedPassword
-  };
-
-  req.session.user_id = id;
-
-  res.redirect("/urls");
-});
-
-//login
-app.post("/login", (req, res) => {
-  let user = getUserByEmail(users, req.body.email);
-  if (user && bcrypt.compareSync(req.body.password, user.password)) {
-    req.session.user_id = user.id;
-    return res.redirect("/urls");
-  } else {
-    res.sendStatus(406);
-  }
-});
-
-//logout
-app.post("/logout", (req, res) => {
-  req.session = null;
-
-  res.redirect("/urls");
-});
-
-//Adding new URL
-app.post("/urls", (req, res) => {
-  if (isLoggedIn(users, req.session)) {
-    const randomStr = generateRandomString();
-    urlDatabase[randomStr] = {
-      longURL: req.body.longURL,
-      userID: req.session.user_id
-    };
-    res.redirect(`/urls/${randomStr}`);
-  }
-  res.sendStatus(403);
 });
 
 //catch all route
@@ -233,3 +200,11 @@ app.get("*", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}`);
 });
+
+module.exports = {
+  urlDatabase,
+  users,
+  generateRandomString,
+  isLoggedIn,
+  urlsForUser
+};
